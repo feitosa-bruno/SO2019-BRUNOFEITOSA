@@ -1,0 +1,18 @@
+Hardware:
+Processor:		Intel Core i5-5200U @ 2.70GHz (4 Cores)
+Motherboard:	LENOVO Lancer 4A1
+Chipset:		Intel Broadwell-U-OPI
+Memory:			4096MB
+Disk 1:			120GB KINGSTON SV300S3
+Disk 2:			1000GB Western Digital WD10JPCX-24U
+Graphics:		Intel HD 5500 2048MB
+Audio:			Intel Broadwell-U Audio
+Network:		Realtek RTL8111/8168/8411
+Wireless:		Qualcomm Atheros QCA9565 / AR9565
+
+Software:
+OS:				Ubuntu 18.04
+Kernel:			4.15.0-52-generic (x86_64)
+Desktop:		GNOME Shell 3.28.3
+File-System:	ext4
+Screen Res.: 	1366x768

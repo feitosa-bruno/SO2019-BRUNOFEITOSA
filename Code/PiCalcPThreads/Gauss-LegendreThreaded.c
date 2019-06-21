@@ -1,5 +1,6 @@
 // Método Gauss-Legendre
 
+#include <pthread.h>
 #include <stdio.h>
 #include <gmp.h>
 
@@ -15,20 +16,33 @@
 #define PRECISION		8192
 #define LIMIT 			15000		// Limite para precisão de 1KB /1024 Bytes/ 8192 bits
 
-// #define PRECISION	8388608		// 1MB de Precisão quebra a biblioteca
+// #define PRECISION	8388608		// 1MB de Precisão quebra a biblioteca/memória
 
-void printf_piGL_gmp(void);
+// Número de Threads
+#define NUM_THREADS 1
+
+struct thread_data {
+	int thread_id;
+	mpf_t *bn_;
+	mpf_t *bn;
+	mpf_t *an;
+};
+
+struct thread_data threadDataArray[NUM_THREADS];
+
+
+void *bn_Calc(void *threadarg);
+void printf_piGLt_gmp(void);
 void printResult(mpf_t result, mpf_t target, mpf_t delta, mpf_t accuracy, mpf_t tn_);
 void printDebugHearbeat(unsigned int counter, mpf_t accuracy, mpf_t tn_);
 void printHeartbeat(unsigned int counter);
 
 int main(int argc, char* argv[]) {
-
 	// Precisão padrão para todos os BigNums
 	mpf_set_default_prec(PRECISION);
 
 	printf("Iniciando...\n");
-	printf_piGL_gmp();
+	printf_piGLt_gmp();
 	printf("Terminado\n");
 
 	return 0;
@@ -61,7 +75,15 @@ void printResult(
 	gmp_printf("tn: %.*Fe (tn)\n", 6, tn_);
 }
 
-void printf_piGL_gmp(void) {
+void printf_piGLt_gmp(void) {
+	// Threads
+	pthread_t threads[NUM_THREADS];
+	pthread_attr_t attr;
+	void *status;
+
+	pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
 	// PI Referência (9 casas decimais, segundo Wolfram)
 	mpf_t mp_pi;
 	mpf_init(mp_pi);
@@ -107,12 +129,15 @@ void printf_piGL_gmp(void) {
 
 	for (i = 0; i < lim; i++) {
 		// Iteração
+		// b_n+1 (Threaded: Independente das restantes)
+		threadDataArray[0].thread_id	= 0;
+		threadDataArray[0].bn_ 			= &bn_;
+		threadDataArray[0].bn			= &bn;
+		threadDataArray[0].an			= &an;
+		pthread_create(&threads[0], &attr, bn_Calc, (void *) &threadDataArray[0]);
 		// a_n+1
 		mpf_add(an_, an, bn);		// an_ = an + bn
 		mpf_div_ui(an_, an_, 2);	// an_ = (an + bn)/2
-		// b_n+1
-		mpf_mul(bn_, an, bn);		// bn_ = an * bn
-		mpf_sqrt(bn_, bn_);			// bn_ = sqrt(an * bn)
 		// t_n+1
 		mpf_sub(aux, an, an_);		// aux = an - an_
 		mpf_mul(aux, aux, aux);		// aux = (an - an_) * (an - an_)
@@ -120,6 +145,10 @@ void printf_piGL_gmp(void) {
 		mpf_sub(tn_, tn, aux);		// tn_ = tn - pn * (an - an_) * (an - an_)
 		// p_n+1
 		mpf_mul_ui(pn_, pn, 2);		// pn_ = pn * 2
+		
+		// Esperar resultado de bn_
+		pthread_join(threads[0], &status);
+
 		// Debug (an - bn)
 		mpf_sub(aux, an_, bn_);		// Acurácia (an - bn)
 
@@ -145,4 +174,22 @@ void printf_piGL_gmp(void) {
 
 	// Saída de Resultados
 	printResult(res, mp_pi, delta, aux, tn_);
+}
+
+void *bn_Calc(void *threadarg) {
+	struct thread_data *argument;
+	argument = (struct thread_data *) threadarg;
+	long taskid		= argument->thread_id;
+	mpf_t *bn_;
+	mpf_t *bn;
+	mpf_t *an;
+	bn_				= argument->bn_;
+	bn				= argument->bn;
+	an				= argument->an;
+	
+	// b_n+1
+	mpf_mul(*bn_, *an, *bn);		// bn_ = an * bn
+	mpf_sqrt(*bn_, *bn_);			// bn_ = sqrt(an * bn)
+
+	pthread_exit((void *) threadarg);
 }
