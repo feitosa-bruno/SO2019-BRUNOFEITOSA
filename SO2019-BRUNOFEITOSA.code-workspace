@@ -9,6 +9,7 @@
 			"stdlib.h": "c",
 			"gmp.h": "c",
 			"mpfr.h": "c"
-		}
+		},
+		"cSpell.language": "en,pt-BR"
 	}
 }
