@@ -1,11 +1,17 @@
 // Método Bailey-Borwein-Plouffe
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <gmp.h>
 
 // Precisão/Limite
 #define PRECISION		8192
 #define LIMIT 			15000
+
+// Nível de Vocalização
+#define VOCAL false
+#define DEBUG false
+
 
 void printf_piBBP_gmp(void);
 void fourWaySum(mpf_t sum, mpf_t pk_1, mpf_t pk_2,  mpf_t pk_3,  mpf_t pk_4);
@@ -44,9 +50,10 @@ void printDebugHeartbeat(unsigned int counter, mpf_t delta) {
 }
 
 void printResult(mpf_t result, mpf_t target, mpf_t delta) {
-	gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
-	gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
-	gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if(VOCAL)	gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
+	if(VOCAL)	gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
+	if(VOCAL)	gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if(!VOCAL)	gmp_printf("\n%.*Ff\n", 6, result);
 }
 
 void printf_piBBP_gmp(void) {
@@ -102,8 +109,8 @@ void printf_piBBP_gmp(void) {
 		mpf_sub(delta, res, mp_pi);
 	
 		// Verificação de que o programa está rodando
-		// printHeartbeat(i);
-		printDebugHeartbeat(i, delta);
+		if(!DEBUG && VOCAL)	printHeartbeat(i);
+		if(DEBUG && VOCAL)	printDebugHeartbeat(i, delta);
 	}
 
 	// Saída de Resultados

@@ -8,10 +8,15 @@
 
 // Precisão/Limite
 #define PRECISION		8192
-#define LIMIT 			1000000
+// #define LIMIT 			1000000
 // #define LIMIT 			100000000
-// #define LIMIT 			1000000000
+#define LIMIT 			1000000000
 // OBS: Manter limite divisível por 4 (terminando em 00)
+
+// Nível de Vocalização
+#define VOCAL false
+#define DEBUG false
+
 
 // Buffer para Números Aleatórios
 struct drand48_data randBuffer;
@@ -27,23 +32,24 @@ int main(int argc, char* argv[]) {
 	// Precisão padrão para todos os BigNums
 	mpf_set_default_prec(PRECISION);
 
-	printf("Iniciando...\n");
+	if (VOCAL) printf("Iniciando...\n");
 
 	// Inicialização da Semente
 	srand48_r(time(NULL), &randBuffer);
 
-	printf("Semente Iniciada.\n");
-	printf("Calculando...\n");
+	if (VOCAL) printf("Semente Iniciada.\n");
+	if (VOCAL) printf("Calculando...\n");
 	printf_piMC_gmp();
-	printf("Terminado\n");
+	if (VOCAL) printf("Terminado\n");
 
 	return 0;
 }
 
 void printResult(mpf_t result, mpf_t target, mpf_t delta) {
-	gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
-	gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
-	gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if (VOCAL) gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
+	if (VOCAL) gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
+	if (VOCAL) gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if (!VOCAL) gmp_printf("%.*Ff\n", 6, result);
 }
 
 void printHeartbeat(unsigned int counter) {
@@ -97,7 +103,7 @@ void printf_piMC_gmp(void) {
 		if ((i % 4 == 0) && i != 0) {
 			piFromCounter(res, count, i);
 			mpf_sub(delta, res, mp_pi);
-			printDebugHeartbeat(i, delta);
+			if(DEBUG && VOCAL)	printDebugHeartbeat(i, delta);
 		}
 	}
 

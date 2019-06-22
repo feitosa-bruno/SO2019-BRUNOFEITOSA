@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <gmp.h>
 
 // #define PRECISION	256
@@ -17,6 +18,10 @@
 #define LIMIT 			15000		// Limite para precisão de 1KB /1024 Bytes/ 8192 bits
 
 // #define PRECISION	8388608		// 1MB de Precisão quebra a biblioteca/memória
+
+// Nível de Vocalização
+#define VOCAL false
+#define DEBUG false
 
 // Número de Threads
 #define NUM_THREADS 1
@@ -41,9 +46,9 @@ int main(int argc, char* argv[]) {
 	// Precisão padrão para todos os BigNums
 	mpf_set_default_prec(PRECISION);
 
-	printf("Iniciando...\n");
+	if (VOCAL) printf("Iniciando...\n");
 	printf_piGLt_gmp();
-	printf("Terminado\n");
+	if (VOCAL) printf("Terminado\n");
 
 	return 0;
 }
@@ -68,11 +73,12 @@ void printResult(
 	mpf_t delta,
 	mpf_t accuracy,
 	mpf_t tn_) {
-	gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
-	gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
-	gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
-	gmp_printf("AC: %.*Fe (Acurácia an - bn)\n", 6, accuracy);
-	gmp_printf("tn: %.*Fe (tn)\n", 6, tn_);
+	if (VOCAL) gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
+	if (VOCAL) gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
+	if (VOCAL) gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if (VOCAL) gmp_printf("AC: %.*Fe (Acurácia an - bn)\n", 6, accuracy);
+	if (VOCAL) gmp_printf("tn: %.*Fe (tn)\n", 6, tn_);
+	if (!VOCAL) gmp_printf("\n%.*Ff\n", 6, result);
 }
 
 void printf_piGLt_gmp(void) {
@@ -159,8 +165,8 @@ void printf_piGLt_gmp(void) {
 		mpf_set(pn, pn_);
 
 		// Verificação de que o programa está rodando
-		// printHeartbeat(i);
-		printDebugHearbeat(i, aux, tn_);
+		if(!DEBUG && VOCAL)	printHeartbeat(i);
+		if(DEBUG && VOCAL)	printDebugHearbeat(i, aux, tn_);
 	}
 	// Finalização
 	mpf_add(res, an_, bn_);		// (an_ + bn_)

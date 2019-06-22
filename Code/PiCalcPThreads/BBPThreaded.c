@@ -2,6 +2,7 @@
 
 #include <pthread.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <gmp.h>
 
 // Precisão/Limite
@@ -10,6 +11,11 @@
 
 // Número de Threads
 #define NUM_THREADS 5
+
+// Nível de Vocalização
+#define VOCAL false
+#define DEBUG false
+
 
 struct thread_data {
 	int thread_id;
@@ -35,9 +41,9 @@ int main(int argc, char* argv[]) {
 	// Precisão padrão para todos os BigNums
 	mpf_set_default_prec(PRECISION);
 
-	printf("Iniciando...\n");
+	if (VOCAL) printf("Iniciando...\n");
 	printf_piBBPt_gmp();
-	printf("Terminado\n");
+	if (VOCAL) printf("Terminado\n");
 
 	return 0;
 }
@@ -57,9 +63,10 @@ void printDebugHeartbeat(unsigned int counter, mpf_t delta) {
 }
 
 void printResult(mpf_t result, mpf_t target, mpf_t delta) {
-	gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
-	gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
-	gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if (VOCAL) gmp_printf("\nPI: %.*Ff (Calculado)\n", 6, result);
+	if (VOCAL) gmp_printf("PI: %.*Ff (Esperado)\n", 6, target);
+	if (VOCAL) gmp_printf("ER: %.*Ff (Erro)\n", 6, delta);
+	if (!VOCAL) gmp_printf("\n%.*Ff\n", 6, result);
 }
 
 void printf_piBBPt_gmp(void) {
@@ -139,8 +146,8 @@ void printf_piBBPt_gmp(void) {
 		mpf_sub(delta, res, mp_pi);
 	
 		// Verificação de que o programa está rodando
-		// printHeartbeat(i);
-		printDebugHeartbeat(i, delta);
+		if(!DEBUG && VOCAL)	printHeartbeat(i);
+		if(DEBUG && VOCAL)	printDebugHeartbeat(i, delta);
 	}
 
 	// Saída de Resultados
