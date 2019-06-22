@@ -6,7 +6,9 @@
 	],
 	"settings": {
 		"files.associations": {
-			"stdlib.h": "c"
+			"stdlib.h": "c",
+			"gmp.h": "c",
+			"mpfr.h": "c"
 		}
 	}
 }

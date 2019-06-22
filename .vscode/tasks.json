@@ -13,6 +13,7 @@
 					"${file}",
 					// "-lm",
 					"-lgmp",
+					"-lmpfr",
 					"-pthread",
 					"-o",
 					"${fileDirname}/${fileBasenameNoExtension}",
