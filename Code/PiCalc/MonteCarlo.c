@@ -134,7 +134,7 @@ void getSquared(mpf_t z) {
 }
 
 void piFromCounter(mpf_t result, unsigned int counter, unsigned int limit) {
-	// Ao invés de calulcar: resultado = 4*(counter/limite)
+	// Ao invés de calcular: resultado = 4*(counter/limite)
 	// Usando: resultado = counter/quo; onde: quo = limite/4
 	// É a mesma coisa, mas divisão por 4 é trivial/rápida em variáveis inteiras
 	unsigned int quo = limit >> 2;	// limit/4

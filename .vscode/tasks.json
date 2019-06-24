@@ -15,6 +15,7 @@
 					"-lgmp",
 					"-lmpfr",
 					"-pthread",
+					"-lm",
 					"-o",
 					"${fileDirname}/${fileBasenameNoExtension}",
 				],

@@ -1,5 +1,6 @@
 // Modelo Black-Scholes
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -18,14 +19,19 @@
 // Argumentos de Entrada (Excluindo Limite)
 #define ARGS_NUM 5
 
-// Método de Arredondamento Padrão: Mais Próximo
+// Método de Arredondamento
 #define STDR	MPFR_RNDN
 
-// Estado do programa vocalizado
-#define VOCAL false
+// Número de Threads
+#define NUM_THREADS	2
+// São listadas 2 threads, mas 1 roda em paralelo, e 0 roda no programa principal
 
-// Buffer para Números Aleatórios
-struct drand48_data randBuffer;
+// Passo para Laço Iterativo
+#define STEP		NUM_THREADS
+
+// Estado do programa vocalizado
+#define VOCAL true
+#define DEBUG true
 
 // Limite de Iterações (inicializado inválido, validado após entrada por usuário)
 unsigned int limit = -1;
@@ -43,16 +49,27 @@ typedef struct BSData {
 	mpfr_t 			confMin;
 	mpfr_t 			confMax;
 	unsigned int	limit;
+	unsigned int 	step;
+	unsigned int	start;
 	mpfr_t 			aux1;
 	mpfr_t 			aux2;
 	mpfr_t 			aux3;
 	mpfr_t 			aux4;
 } BSData;
 
+struct thread_data {
+	int		thread_id;
+	BSData	bsData;
+};
+
+struct thread_data threadDataArray[NUM_THREADS];
+
 
 void printExecutionArguments(double* argList, unsigned int limit);
 void initializeBSData(BSData * bsData, double* argList, unsigned int limit);
 bool calcBlackScholes(BSData * bsData);
+void loopIteration (BSData * bsData);
+void *loopIterationThread (void *threadarg);
 void calcTrials(BSData * bsData);
 void calcMean(BSData * bsData);
 void calcStdDev(BSData * bsData);
@@ -98,9 +115,6 @@ int main(int argc, char* argv[]) {
 	printExecutionArguments(*argList, limit);
 
 	if (VOCAL) printf("Iniciando...\n");
-	if (VOCAL) printf("Inicializando Semente dos Números Aleatórios...\n");
-	srand48_r(time(NULL), &randBuffer);
-	if (VOCAL) printf("Semente Iniciada.\n");
 	if (VOCAL) printf("Inicializando Dados...\n");
 	initializeBSData(&bsData, *argList, limit);
 	if (VOCAL) printf("Dados Inicializados.\n");
@@ -197,10 +211,10 @@ bool calcBlackScholes(BSData * bsData) {
 	mpfr_div(bsData->aux4, bsData->aux4, bsData->aux2, STDR);// aux4 = ln(E/aux1)/aux2
 
 	// Debug
-	if (VOCAL) mpfr_printf("aux1: %.6RNe\n", bsData->aux1);
-	if (VOCAL) mpfr_printf("aux2: %.6RNe\n", bsData->aux2);
-	if (VOCAL) mpfr_printf("aux3: %.6RNe\n", bsData->aux3);
-	if (VOCAL) mpfr_printf("aux4: %.6RNe\n", bsData->aux4);
+	if (VOCAL && DEBUG) mpfr_printf("aux1: %.6RNe\n", bsData->aux1);
+	if (VOCAL && DEBUG) mpfr_printf("aux2: %.6RNe\n", bsData->aux2);
+	if (VOCAL && DEBUG) mpfr_printf("aux3: %.6RNe\n", bsData->aux3);
+	if (VOCAL && DEBUG) mpfr_printf("aux4: %.6RNe\n", bsData->aux4);
 
 	if (mpfr_cmp_ui(bsData->aux4, 1) >= 0) {
 		return true;	// Argumentos Inválidos para o Método		
@@ -219,33 +233,133 @@ bool calcBlackScholes(BSData * bsData) {
 }
 
 void calcTrials(BSData * bsData) {
+	// Threads
+	pthread_t threads[NUM_THREADS - 1]; // Uma thread é o proprio programa principal
+	pthread_attr_t attr;
+	void *status;
+
+	pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+
+	for (int k = 0; k < NUM_THREADS; k++){
+		threadDataArray[k].thread_id		= k;
+		threadDataArray[k].bsData.limit 	= bsData->limit;
+		threadDataArray[k].bsData.start		= k;
+		threadDataArray[k].bsData.step		= STEP;
+		threadDataArray[k].bsData.trials	= bsData->trials;
+		mpfr_init(threadDataArray[k].bsData.aux1);
+		mpfr_init(threadDataArray[k].bsData.aux2);
+		mpfr_init(threadDataArray[k].bsData.aux3);
+		mpfr_init(threadDataArray[k].bsData.aux4);
+		mpfr_init(threadDataArray[k].bsData.E);
+		mpfr_set(threadDataArray[k].bsData.aux1, bsData->aux1, STDR);
+		mpfr_set(threadDataArray[k].bsData.aux2, bsData->aux2, STDR);
+		mpfr_set(threadDataArray[k].bsData.aux3, bsData->aux3, STDR);
+		mpfr_set(threadDataArray[k].bsData.aux4, bsData->aux4, STDR);
+		mpfr_set(threadDataArray[k].bsData.E, bsData->E, STDR);
+	}
+	
+	// Lança Threads
+	for (int t = 1; t < NUM_THREADS; t++) {	// Thread 0 roda no próprio corpo
+		pthread_create(
+			&threads[t], &attr, loopIterationThread, (void *)&threadDataArray[t]
+		);
+	}
+
+	// Calcula Thread 0 (no programa principal)
+	loopIteration(&threadDataArray[0].bsData);
+	
+	for (int t = 1; t < NUM_THREADS; t++) {	// Thread 0 roda no próprio corpo
+		pthread_join(threads[t], &status);	// então só junciona thread 1 em diante
+	}
+}
+
+void loopIteration (BSData * bsData) {
 	// trial[i] = aux3.max(t-E;0)
 	// t = aux1.exp(aux2.rndNmb)
 	// trial[i] = aux3.(aux1.exp(aux2.rndNmb)-E)
-	unsigned int	limit = bsData->limit;
+	unsigned int 	start	= bsData->start;
+	unsigned int 	limit	= bsData->limit;
+	unsigned int 	step	= bsData->step;
 	double			random_d;
-	mpfr_t *		trial;
+	mpfr_t			*trial;
 	mpfr_t			rnd;
+	struct drand48_data randBuffer;
+	double random;
+	
+	srand48_r(time(NULL), &randBuffer);
 
 	mpfr_init(rnd);
 	
-	for (int i=0; i < limit; i++) {
+	// printf("%d ; %d ; %d\n", start, step, limit);
+
+	for (int i=start; i < limit; i+=step) {
+		// printf("%d\n",i);
 		trial = &bsData->trials[i];
-			drand48_r(&randBuffer, &random_d);	// Gera um double aleatório
-			mpfr_set_d(rnd, random_d, STDR);
-			if (mpfr_cmp(rnd, bsData->aux4) <= 0) {	// Verifica se t < E (via aux4)
-				mpfr_set_zero(*trial, 1);
-			} else {
-				// trial[i] = aux3.(aux1.exp(aux2.rndNmb)-E)
-				mpfr_set(*trial, rnd, STDR);					// *trial = rndNmb
-				mpfr_mul(*trial, *trial, bsData->aux2, STDR);	// *trial = rn*aux2
-				mpfr_exp(*trial, *trial, STDR);					// *trial = exp(rn*aux2)
-				mpfr_mul(*trial, *trial, bsData->aux1, STDR);	// *trial = aux1*^
-				mpfr_sub(*trial, *trial, bsData->E, STDR);		// *trial = ^ - E
-				mpfr_mul(*trial, *trial, bsData->aux3, STDR);	// *trial = aux3 * ^
-			}
-		printHeartbeat(i);
+		drand48_r(&randBuffer, &random_d);	// Gera um double aleatório
+		mpfr_set_d(rnd, random_d, STDR);
+		if (mpfr_cmp(rnd, bsData->aux4) <= 0) {	// Verifica se t < E (via aux4)
+			mpfr_set_zero(*trial, 1);
+		} else {
+			// trial[i] = aux3.(aux1.exp(aux2.rndNmb)-E)
+			mpfr_set(*trial, rnd, STDR);					// *trial = rndNmb
+			mpfr_mul(*trial, *trial, bsData->aux2, STDR);	// *trial = rn*aux2
+			mpfr_exp(*trial, *trial, STDR);					// *trial = exp(rn*aux2)
+			mpfr_mul(*trial, *trial, bsData->aux1, STDR);	// *trial = aux1*^
+			mpfr_sub(*trial, *trial, bsData->E, STDR);		// *trial = ^ - E
+			mpfr_mul(*trial, *trial, bsData->aux3, STDR);	// *trial = aux3 * ^
+		}
+	// printHeartbeat(i);
+	// mpfr_printf("Trial[%d]: %.4RNf\n", i, *trial);
 	}
+}
+
+void *loopIterationThread (void *threadarg) {
+	// Somente o cabeçalho muda entre a thread e não-thread
+	struct thread_data *argument;
+	argument = (struct thread_data *) threadarg;
+	long taskid		= argument->thread_id;
+	BSData *		bsData;
+	bsData			= &argument->bsData;
+
+	// trial[i] = aux3.max(t-E;0)
+	// t = aux1.exp(aux2.rndNmb)
+	// trial[i] = aux3.(aux1.exp(aux2.rndNmb)-E)
+	unsigned int 	start	= bsData->start;
+	unsigned int 	limit	= bsData->limit;
+	unsigned int 	step	= bsData->step;
+	double			random_d;
+	mpfr_t			*trial;
+	mpfr_t			rnd;
+	struct drand48_data randBuffer;
+	double random;
+	
+	srand48_r(time(NULL), &randBuffer);
+
+	mpfr_init(rnd);
+	
+	// printf("%d ; %d ; %d\n", start, step, limit);
+
+	for (int i=start; i < limit; i+=step) {
+		// printf("%d\n",i);
+		trial = &bsData->trials[i];
+		drand48_r(&randBuffer, &random_d);	// Gera um double aleatório
+		mpfr_set_d(rnd, random_d, STDR);
+		if (mpfr_cmp(rnd, bsData->aux4) <= 0) {	// Verifica se t < E (via aux4)
+			mpfr_set_zero(*trial, 1);
+		} else {
+			// trial[i] = aux3.(aux1.exp(aux2.rndNmb)-E)
+			mpfr_set(*trial, rnd, STDR);					// *trial = rndNmb
+			mpfr_mul(*trial, *trial, bsData->aux2, STDR);	// *trial = rn*aux2
+			mpfr_exp(*trial, *trial, STDR);					// *trial = exp(rn*aux2)
+			mpfr_mul(*trial, *trial, bsData->aux1, STDR);	// *trial = aux1*^
+			mpfr_sub(*trial, *trial, bsData->E, STDR);		// *trial = ^ - E
+			mpfr_mul(*trial, *trial, bsData->aux3, STDR);	// *trial = aux3 * ^
+		}
+	// mpfr_printf("Trial[%d]: %.4RNf\n", i, *trial);
+	// printHeartbeat(i);
+	}
+	pthread_exit((void *) threadarg);
 }
 
 void calcMean(BSData * bsData) {
