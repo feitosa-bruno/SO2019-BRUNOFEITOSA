@@ -1,0 +1,22 @@
+{
+    "editor.autoIndent": false,
+	"cSpell.language": "en,pt,pt_BR",
+	"cSpell.words": [
+		"ASIC",
+		"ASICs",
+		"FPGA",
+		"FPGAs",
+		"Faggin",
+		"Fairchild",
+		"Gigoptics",
+		"JTAG",
+		"Kilby",
+		"LUTs",
+		"Stratix",
+		"Tsing",
+		"Virtex",
+		"Vonderschmitt",
+		"Xilinx",
+		"Zuse"
+	]
+}
